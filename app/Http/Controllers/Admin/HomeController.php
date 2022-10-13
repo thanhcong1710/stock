@@ -46,7 +46,7 @@ class HomeController extends Controller
             if (count($list) > 10000) {
                 for($i = 0; $i < 10000; $i++) {
                     $item = $this->convertData($list[$i]);
-                    if((int)$item->tong_khoi_luong_giao_dich){
+                    if((int)$item->tong_khoi_luong_giao_dich && $item->ngay){
                         $query.= "('$ma','$item->ngay','$item->tong_gia_tri_giao_dich','$item->tong_khoi_luong_giao_dich','$item->von_hoa_thi_truong','$item->gia_dong_cua','$item->bien_dong_gia','$item->bien_dong_phan_tram'),";
                     }
                 }
@@ -56,7 +56,7 @@ class HomeController extends Controller
             } else {
                 foreach($list as $i=>$item) {
                     $item = $this->convertData($list[$i]);
-                    if((int)$item->tong_khoi_luong_giao_dich){
+                    if((int)$item->tong_khoi_luong_giao_dich && $item->ngay){
                         $query.= "('$ma','$item->ngay','$item->tong_gia_tri_giao_dich','$item->tong_khoi_luong_giao_dich','$item->von_hoa_thi_truong','$item->gia_dong_cua','$item->bien_dong_gia','$item->bien_dong_phan_tram'),";
                     }
                 }
@@ -66,11 +66,13 @@ class HomeController extends Controller
         }
     }
     private function convertData($data){
-        $ngay ="";
+        $ngay = "";
         if($data[0]){
             if(is_numeric($data[0])){
                 $unix_date = ($data[0] - 25569) * 86400;
                 $ngay = date('Y-m-d',$unix_date);
+                $arr_ngay = explode("-",$ngay);
+                $ngay = $arr_ngay[0]."-".$arr_ngay[2]."-".$arr_ngay[1];
             }else{
                 $ngay = date('Y-m-d',strtotime(str_replace("/", "-", $data[0])));
             }
