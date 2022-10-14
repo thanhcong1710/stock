@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as x;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as y;
 use App\Providers\UtilityServiceProvider as u;
+use DOMDocument;
 
 class HomeController extends Controller
 {
@@ -87,5 +88,73 @@ class HomeController extends Controller
             'bien_dong_phan_tram'=> $data[6]? $data[6] : 0,
         );
         return $result;
+    }
+    public function crawlCoPhieu68Ma(){
+        $list=u::query("SELECT * FROM cophieu68_ma");
+        foreach($list AS $row){
+            $link="https://www.cophieu68.vn/historyprice.php?currentPage=1&id=".$row->ma;
+            $data=file_get_contents($link);
+            $doc = new DOMDocument();                        
+            $doc->loadHTML($data,LIBXML_NOERROR);
+            $content = $doc->getElementById('navigator');
+            $list_li = $content->getElementsByTagName('li');
+            $a = $list_li[count($list_li)-1]->getElementsByTagName('a');
+            $page = $a[0]->getAttribute('href');
+            u::updateSimpleRow(array(
+                'page'=>(int)str_replace('?currentPage=','',$page)
+            ),array('id'=>$row->id),'cophieu68_ma');
+        }
+        return "ok";
+    }
+    public function crawlCoPhieu68($ma,$page){
+        for($i=1;$i<=$page;$i++){
+            $link="https://www.cophieu68.vn/historyprice.php?currentPage=".$i."&id=".$ma;
+            $data=file_get_contents($link);
+            $doc = new DOMDocument();                        
+            $doc->loadHTML($data,LIBXML_NOERROR);
+            $content = $doc->getElementById('content');
+            $list_tr = $content->getElementsByTagName('tr');
+
+            $query = "INSERT INTO cophieu68_data_history (ma, ngay, gia_tham_chieu, bien_dong_gia, bien_dong_phan_tram, gia_dong_cua, khoi_luong, gia_mo_cua, gia_cao_nhat, gia_thap_nhat, giao_dich_thoa_thuan, nuoc_ngoai_mua, nuoc_ngoai_ban) VALUES ";
+            foreach($list_tr AS $k=>$tr){
+                if($k>0){
+                    $list_td = $tr->getElementsByTagName('td');
+                    $item = $this->convertDataCophieu68($list_td);
+                    if($item){    
+                        $query.=" ( '$ma', '$item->ngay', '$item->gia_tham_chieu', '$item->bien_dong_gia', '$item->bien_dong_phan_tram', '$item->gia_dong_cua', '$item->khoi_luong', '$item->gia_mo_cua', '$item->gia_cao_nhat', '$item->gia_thap_nhat', '$item->giao_dich_thoa_thuan', '$item->nuoc_ngoai_mua', '$item->nuoc_ngoai_ban'),";
+                    }
+                }
+            };
+            $query = substr($query, 0, -1);
+            u::query($query);
+            echo "/".$i."/";
+        }
+    }
+    private function convertDataCophieu68($data){
+        if(isset($data[3])){
+            $bien_dong_gia = $data[3]->getElementsByTagName('span');
+            $bien_dong_phan_tram = $data[4]->getElementsByTagName('span');
+            $gia_dong_cua = $data[5]->getElementsByTagName('strong');
+            $gia_mo_cua = $data[7]->getElementsByTagName('span');
+            $gia_cao_nhat = $data[8]->getElementsByTagName('span');
+            $gia_thap_nhat = $data[9]->getElementsByTagName('span');
+            $result = (object)array(
+                'ngay'=> date('Y-m-d',strtotime($data[1]->nodeValue)),
+                'gia_tham_chieu'=> $data[2]->nodeValue,
+                'bien_dong_gia'=> $bien_dong_gia[0]->nodeValue,
+                'bien_dong_phan_tram'=> str_replace('%','',$bien_dong_phan_tram[0]->nodeValue),
+                'gia_dong_cua'=> $gia_dong_cua[0]->nodeValue,
+                'khoi_luong'=> str_replace(',','',$data[6]->nodeValue),
+                'gia_mo_cua'=> $gia_mo_cua[0]->nodeValue,
+                'gia_cao_nhat'=> $gia_cao_nhat[0]->nodeValue,
+                'gia_thap_nhat'=> $gia_thap_nhat[0]->nodeValue,
+                'giao_dich_thoa_thuan'=> str_replace(',','',$data[10]->nodeValue),
+                'nuoc_ngoai_mua'=> str_replace(',','',$data[11]->nodeValue),
+                'nuoc_ngoai_ban'=> str_replace(',','',$data[12]->nodeValue),
+            );
+            return $result;
+        }else{
+            return null;
+        }
     }
 }
