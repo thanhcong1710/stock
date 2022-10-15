@@ -90,19 +90,21 @@ class HomeController extends Controller
         return $result;
     }
     public function crawlCoPhieu68Ma(){
-        $list=u::query("SELECT * FROM cophieu68_ma");
+        $list=u::query("SELECT * FROM cophieu68_ma WHERE id>33");
         foreach($list AS $row){
             $link="https://www.cophieu68.vn/historyprice.php?currentPage=1&id=".$row->ma;
             $data=file_get_contents($link);
             $doc = new DOMDocument();                        
             $doc->loadHTML($data,LIBXML_NOERROR);
             $content = $doc->getElementById('navigator');
-            $list_li = $content->getElementsByTagName('li');
-            $a = $list_li[count($list_li)-1]->getElementsByTagName('a');
-            $page = $a[0]->getAttribute('href');
-            u::updateSimpleRow(array(
-                'page'=>(int)str_replace('?currentPage=','',$page)
-            ),array('id'=>$row->id),'cophieu68_ma');
+            if($content){
+                $list_li = $content->getElementsByTagName('li');
+                $a = $list_li[count($list_li)-1]->getElementsByTagName('a');
+                $page = $a[0]->getAttribute('href');
+                u::updateSimpleRow(array(
+                    'page'=>(int)str_replace('?currentPage=','',$page)
+                ),array('id'=>$row->id),'cophieu68_ma');
+            }
         }
         return "ok";
     }
@@ -128,6 +130,31 @@ class HomeController extends Controller
             $query = substr($query, 0, -1);
             u::query($query);
             echo "/".$i."/";
+        }
+    }
+    public function crawlUpdateCoPhieu68($ma,$ngay){
+        $link="https://www.cophieu68.vn/historyprice.php?id=".$ma;
+        $data=file_get_contents($link);
+        $doc = new DOMDocument();                        
+        $doc->loadHTML($data,LIBXML_NOERROR);
+        $content = $doc->getElementById('content');
+        $list_tr = $content->getElementsByTagName('tr');
+
+        $query = "INSERT INTO cophieu68_data_history (ma, ngay, gia_tham_chieu, bien_dong_gia, bien_dong_phan_tram, gia_dong_cua, khoi_luong, gia_mo_cua, gia_cao_nhat, gia_thap_nhat, giao_dich_thoa_thuan, nuoc_ngoai_mua, nuoc_ngoai_ban) VALUES ";
+        $check = 0;
+        foreach($list_tr AS $k=>$tr){
+            if($k>0){
+                $list_td = $tr->getElementsByTagName('td');
+                $item = $this->convertDataCophieu68($list_td);
+                if($item && $item->ngay > $ngay){    
+                    $query.=" ( '$ma', '$item->ngay', '$item->gia_tham_chieu', '$item->bien_dong_gia', '$item->bien_dong_phan_tram', '$item->gia_dong_cua', '$item->khoi_luong', '$item->gia_mo_cua', '$item->gia_cao_nhat', '$item->gia_thap_nhat', '$item->giao_dich_thoa_thuan', '$item->nuoc_ngoai_mua', '$item->nuoc_ngoai_ban'),";
+                    $check = 1;
+                }
+            }
+        };
+        if($check){
+            $query = substr($query, 0, -1);
+            u::query($query);
         }
     }
     private function convertDataCophieu68($data){

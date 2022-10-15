@@ -52,7 +52,7 @@ class CampaignsController extends Controller
         u::query("DELETE FROM campaign_month WHERE campaign_id = $campaign_id");
         u::query("DELETE FROM campaign_cycles WHERE campaign_id = $campaign_id");
         if($type==0){
-            $list_month = u::query("SELECT * FROM data_history_month WHERE month>='".date('Y-m',strtotime($campaign_info->start_date))."'");
+            $list_month = u::query("SELECT * FROM cophieu68_data_history_month WHERE month>='".date('Y-m',strtotime($campaign_info->start_date))."'");
             foreach($list_month AS $row){
                 $num = floor($campaign_info->amount_max/(100*$row->gia_trung_binh));
                 u::insertSimpleRow([
@@ -64,7 +64,7 @@ class CampaignsController extends Controller
                     'gia_mua'=>$row->gia_trung_binh
                 ], 'campaign_month');
             }
-            $data_history = u::query("SELECT * FROM data_history WHERE ma='$campaign_info->ma' AND ngay>='$campaign_info->start_date' ORDER BY ngay");
+            $data_history = u::query("SELECT * FROM cophieu68_data_history WHERE ma='$campaign_info->ma' AND ngay>='$campaign_info->start_date' ORDER BY ngay");
             $start_date = $campaign_info->start_date;
             foreach($data_history AS $his){
                 $data_info = u::first("SELECT SUM(num) AS num, SUM(amount_disbursement) AS amount_disbursement,COUNT(id) AS count_month  FROM campaign_month 
@@ -89,18 +89,18 @@ class CampaignsController extends Controller
 
     }
     public function processDataHistoryMonth($ma){
-        $list_month = u::query("SELECT DISTINCT DATE_FORMAT(ngay,'%Y-%m') AS report_month FROM data_history WHERE ma='$ma' ORDER BY report_month ");
+        $list_month = u::query("SELECT DISTINCT DATE_FORMAT(ngay,'%Y-%m') AS report_month FROM cophieu68_data_history WHERE ma='$ma' ORDER BY report_month ");
         foreach($list_month AS $row){
-            $gia_thap_nhat=u::first("SELECT MIN(gia_dong_cua) AS gia_dong_cua FROM data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
-            $gia_cao_nhat=u::first("SELECT MAX(gia_dong_cua) AS gia_dong_cua FROM data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
-            $gia_trung_binh=u::first("SELECT SUM(gia_dong_cua) AS total_gia_dong_cua,COUNT(id) AS total FROM data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
+            $gia_thap_nhat=u::first("SELECT MIN(gia_dong_cua) AS gia_dong_cua FROM cophieu68_data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
+            $gia_cao_nhat=u::first("SELECT MAX(gia_dong_cua) AS gia_dong_cua FROM cophieu68_data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
+            $gia_trung_binh=u::first("SELECT SUM(gia_dong_cua) AS total_gia_dong_cua,COUNT(id) AS total FROM cophieu68_data_history WHERE ma='$ma' AND DATE_FORMAT(ngay,'%Y-%m')='$row->report_month'");
             u::insertSimpleRow([
                 'ma'=>$ma,
                 'month'=>$row->report_month,
                 'gia_thap_nhat'=>$gia_thap_nhat->gia_dong_cua,
                 'gia_cao_nhat'=>$gia_cao_nhat->gia_dong_cua,
-                'gia_trung_binh'=>ceil($gia_trung_binh->total_gia_dong_cua/$gia_trung_binh->total),
-            ], 'data_history_month');
+                'gia_trung_binh'=>round($gia_trung_binh->total_gia_dong_cua/$gia_trung_binh->total,2),
+            ], 'cophieu68_data_history_month');
         }
         return "ok";
     }
