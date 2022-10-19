@@ -51,25 +51,26 @@ class CampaignsController extends Controller
         $campaign_info = u::first("SELECT * FROM campaigns WHERE id=$campaign_id");
         u::query("DELETE FROM campaign_month WHERE campaign_id = $campaign_id");
         u::query("DELETE FROM campaign_cycles WHERE campaign_id = $campaign_id");
+        //type=0  case mua trung bình giá hàng tháng với giá trung bình của tháng
         if($type==0){
             $list_month = u::query("SELECT * FROM cophieu68_data_history_month WHERE month>='".date('Y-m',strtotime($campaign_info->start_date))."'");
             foreach($list_month AS $row){
-                $num = floor($campaign_info->amount_max/(100*$row->gia_trung_binh));
+                $num = floor($campaign_info->amount_max/(100*$row->gia_trung_binh*1000));
                 u::insertSimpleRow([
                     'campaign_id'=>$campaign_id,
                     'month'=>$row->month,
                     'type'=>0,
                     'num'=>$num*100,
-                    'amount_disbursement'=>$row->gia_trung_binh*$num*100,
+                    'amount_disbursement'=>$row->gia_trung_binh*$num*100*1000,
                     'gia_mua'=>$row->gia_trung_binh
                 ], 'campaign_month');
             }
             $data_history = u::query("SELECT * FROM cophieu68_data_history WHERE ma='$campaign_info->ma' AND ngay>='$campaign_info->start_date' ORDER BY ngay");
             $start_date = $campaign_info->start_date;
-            foreach($data_history AS $his){
+            foreach($data_history AS $h=> $his){
                 $data_info = u::first("SELECT SUM(num) AS num, SUM(amount_disbursement) AS amount_disbursement,COUNT(id) AS count_month  FROM campaign_month 
                     WHERE month>='".date('Y-m',strtotime($start_date))."' AND month <= '".date('Y-m',strtotime($his->ngay))."' AND campaign_id= $campaign_id");
-                $tmp_amount = $data_info->num *$his->gia_dong_cua;
+                $tmp_amount = $data_info->num *$his->gia_dong_cua *1000;
                 if($data_info->count_month>1 && $tmp_amount > $data_info->amount_disbursement*(100+$campaign_info->rate)/100){
                     u::insertSimpleRow([
                         'campaign_id'=>$campaign_id,
@@ -78,7 +79,22 @@ class CampaignsController extends Controller
                         'end_date'=>$his->ngay,
                         'count_month'=>$data_info->count_month,
                         'amount_disbursement'=>$data_info->amount_disbursement,
-                        'amount_total'=>$data_info->amount_disbursement*(100+$campaign_info->rate)/100,
+                        'amount_total'=>$data_info->num*$his->gia_dong_cua*1000,
+                        'num_total'=>$data_info->num,
+                        'gia_dong_cua'=>$his->gia_dong_cua
+                    ], 'campaign_cycles');
+                    $start_date = $his->ngay;
+                }
+                if($h == count($data_history)-1){
+                    u::insertSimpleRow([
+                        'campaign_id'=>$campaign_id,
+                        'type'=>0,
+                        'start_date'=>$start_date,
+                        'end_date'=>$his->ngay,
+                        'count_month'=>$data_info->count_month,
+                        'amount_disbursement'=>$data_info->amount_disbursement,
+                        'amount_total'=>$data_info->num*$his->gia_dong_cua*1000,
+                        'num_total'=>$data_info->num,
                         'gia_dong_cua'=>$his->gia_dong_cua
                     ], 'campaign_cycles');
                     $start_date = $his->ngay;
