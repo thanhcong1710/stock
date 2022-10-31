@@ -17,4 +17,5 @@ Route::middleware('auth:admin')->group(function (){
     Route::get('/campaign/process-data-history-month/{ma}', [CampaignsController::class, 'processDataHistoryMonth']);
     Route::get('/crawl/cophieu68', [HomeController::class, 'crawlCoPhieu68']);
     Route::get('/crawl/cophieu68-ma', [HomeController::class, 'crawlCoPhieu68Ma']);
+    Route::get('/crawl/cophieu68-event/{ma}', [HomeController::class, 'crawlCoPhieu68_Event']);
 });

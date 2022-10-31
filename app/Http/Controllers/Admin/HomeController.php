@@ -186,4 +186,48 @@ class HomeController extends Controller
             return null;
         }
     }
+    public function crawlCoPhieu68_Event($ma){
+        $link="https://www.cophieu68.vn/eventschedule_detail.php?id=".$ma;
+        $data=file_get_contents($link);
+        $doc = new DOMDocument();                        
+        $doc->loadHTML($data,LIBXML_NOERROR);
+        $content = $doc->getElementById('events');
+        $list_tr = $content->getElementsByTagName('tr');
+        $check=0;
+        $query = "INSERT INTO cophieu68_data_event (ma, loai_su_kien, ngay_gdkhq, ngay_thuc_hien, ti_le, ghi_chu) VALUES ";
+        foreach($list_tr AS $k=>$tr){
+            if($k>0){
+                $list_td = $tr->getElementsByTagName('td');
+                $item = $this->convertDataCophieu68Event($list_td);
+                if($item){    
+                    $query.=" ( '$ma', '$item->loai_su_kien', '$item->ngay_gdkhq', '$item->ngay_thuc_hien', '$item->ti_le', '$item->ghi_chu'),";
+                    $check=1;
+                }
+            }
+        };
+        if($check){
+            $query = substr($query, 0, -1);
+            u::query($query);
+        }
+    }
+    private function convertDataCophieu68Event($data){
+        if(isset($data[4]) && preg_replace(['/\t/','/\n/','/\r/'], '', $data[4]->nodeValue)){
+            $ngay_gdkhq = $data[2]->nodeValue;
+            $ngay_gdkhq = explode("/",$ngay_gdkhq);
+            $ngay_gdkhq = isset( $ngay_gdkhq[2]) ? $ngay_gdkhq[2]."-".$ngay_gdkhq[1]."-".$ngay_gdkhq[0] : '1975-01-01';
+            $ngay_thuc_hien = $data[3]->nodeValue;
+            $ngay_thuc_hien = explode("/",$ngay_thuc_hien);
+            $ngay_thuc_hien = isset( $ngay_thuc_hien[2]) ? $ngay_thuc_hien[2]."-".$ngay_thuc_hien[1]."-".$ngay_thuc_hien[0] : '1975-01-01';
+            $result = (object)array(
+                'loai_su_kien'=> preg_replace(['/\t/','/\n/','/\r/'], '', $data[1]->nodeValue),
+                'ngay_gdkhq'=> $ngay_gdkhq,
+                'ngay_thuc_hien'=> $ngay_thuc_hien,
+                'ti_le'=> preg_replace(['/\t/','/\n/','/\r/'], '', $data[4]->nodeValue),
+                'ghi_chu'=> preg_replace(['/\t/','/\n/','/\r/'], '', $data[5]->nodeValue),
+            );
+            return $result;
+        }else{
+            return null;
+        }
+    }
 }
